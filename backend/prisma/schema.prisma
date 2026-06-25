@@ -1,0 +1,318 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id               Int       @id @default(autoincrement())
+  name             String
+  domain           String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  users            User[]
+  projects         Project[]
+  tickets          Ticket[]
+  integrations     Integration[]
+  whiteLabelSettings WhiteLabelSettings?
+  companySettings  CompanySettings?
+  reports          Report[]
+  activityLogs     ActivityLog[]
+  
+  @@map("tenants")
+}
+
+model Role {
+  id               Int       @id @default(autoincrement())
+  name             String    @unique
+  description      String?
+  
+  users            User[]
+  rolePermissions  RolePermission[]
+  
+  @@map("roles")
+}
+
+model Permission {
+  id               Int       @id @default(autoincrement())
+  name             String    @unique
+  description      String?
+  resource         String?
+  action           String?
+  
+  rolePermissions  RolePermission[]
+  
+  @@map("permissions")
+}
+
+model RolePermission {
+  id               Int       @id @default(autoincrement())
+  roleId           Int
+  permissionId     Int
+  
+  role             Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission       Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  password         String
+  name             String
+  avatar           String?
+  roleId           Int
+  tenantId         Int
+  parentId         Int?
+  linkedin         String?
+  skills           String[]
+  knowledge        String[]
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdBy        Int?
+  updatedBy        Int?
+  
+  role             Role      @relation(fields: [roleId], references: [id])
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  parent           User?     @relation("UserHierarchy", fields: [parentId], references: [id])
+  children         User[]    @relation("UserHierarchy")
+  createdTickets   Ticket[]  @relation("TicketCreator")
+  assignedTickets  Ticket[]  @relation("TicketAssignee")
+  managedTickets   Ticket[]  @relation("TicketManager")
+  ticketComments   TicketComment[]
+  ticketAttachments TicketAttachment[]
+  ticketHistory    TicketHistory[]
+  notifications    Notification[]
+  projectMembers   ProjectMember[]
+  createdProjects  Project[] @relation("ProjectCreator")
+  reports          Report[]
+  activityLogs     ActivityLog[]
+  
+  @@map("users")
+}
+
+model Project {
+  id               Int       @id @default(autoincrement())
+  name             String
+  siteName         String?
+  basecampUrl      String?
+  websiteUrl       String?
+  status           String    @default("active")
+  tenantId         Int
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdBy        Int?
+  updatedBy        Int?
+  
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  createdByUser    User?     @relation("ProjectCreator", fields: [createdBy], references: [id])
+  members          ProjectMember[]
+  tickets          Ticket[]
+  
+  @@map("projects")
+}
+
+model ProjectMember {
+  id               Int       @id @default(autoincrement())
+  projectId        Int
+  userId           Int
+  role             String    @default("member")
+  createdAt        DateTime  @default(now())
+  
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model Ticket {
+  id               Int       @id @default(autoincrement())
+  ticketId         String    @unique
+  title            String
+  description      String
+  status           String    @default("Pending")
+  priority         String    @default("Medium")
+  source           String    @default("Manual")
+  emailSubject     String?
+  basecampUrl      String?
+  websiteUrl       String?
+  projectId        Int
+  assignedTo       Int?
+  managedBy        Int?
+  createdBy        Int
+  tenantId         Int
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  estimatedHours   Int?
+  actualHours      Int?
+  aiScore          Int?
+  
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  project          Project   @relation(fields: [projectId], references: [id])
+  createdByUser    User      @relation("TicketCreator", fields: [createdBy], references: [id])
+  assignedToUser   User?     @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  managedByUser    User?     @relation("TicketManager", fields: [managedBy], references: [id])
+  comments         TicketComment[]
+  attachments      TicketAttachment[]
+  history          TicketHistory[]
+  
+  @@map("tickets")
+}
+
+model TicketComment {
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  userId           Int
+  content          String
+  createdAt        DateTime  @default(now())
+  
+  ticket           Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id])
+  
+  @@map("ticket_comments")
+}
+
+model TicketAttachment {
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  userId           Int
+  fileName         String
+  filePath         String
+  fileSize         Int
+  fileType         String
+  createdAt        DateTime  @default(now())
+  
+  ticket           Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id])
+  
+  @@map("ticket_attachments")
+}
+
+model TicketHistory {
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  userId           Int
+  action           String
+  field            String?
+  oldValue         String?
+  newValue         String?
+  createdAt        DateTime  @default(now())
+  
+  ticket           Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id])
+  
+  @@map("ticket_history")
+}
+
+model Integration {
+  id               Int       @id @default(autoincrement())
+  name             String
+  type             String
+  status           String    @default("disconnected")
+  tenantId         Int
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastSync         DateTime?
+  config           Json?
+  
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  logs             IntegrationLog[]
+  
+  @@map("integrations")
+}
+
+model IntegrationLog {
+  id               Int       @id @default(autoincrement())
+  integrationId    Int
+  message          String
+  type             String
+  createdAt        DateTime  @default(now())
+  
+  integration      Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  
+  @@map("integration_logs")
+}
+
+model Notification {
+  id               Int       @id @default(autoincrement())
+  userId           Int
+  title            String
+  message          String
+  type             String
+  isRead           Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+model Report {
+  id               Int       @id @default(autoincrement())
+  name             String
+  type             String
+  filters          Json?
+  fileUrl          String?
+  tenantId         Int
+  createdBy        Int
+  createdAt        DateTime  @default(now())
+  
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  createdByUser    User      @relation(fields: [createdBy], references: [id])
+  
+  @@map("reports")
+}
+
+model ActivityLog {
+  id               Int       @id @default(autoincrement())
+  tenantId         Int
+  userId           Int
+  action           String
+  resource         String?
+  resourceId       Int?
+  details          Json?
+  createdAt        DateTime  @default(now())
+  
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  user             User      @relation(fields: [userId], references: [id])
+  
+  @@map("activity_logs")
+}
+
+model WhiteLabelSettings {
+  id               Int       @id @default(autoincrement())
+  tenantId         Int      @unique
+  companyName      String?
+  dashboardTitle   String?
+  loginSubtitle    String?
+  logoUrl          String?
+  primaryColor     String?
+  secondaryColor   String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  
+  @@map("white_label_settings")
+}
+
+model CompanySettings {
+  id               Int       @id @default(autoincrement())
+  tenantId         Int      @unique
+  settings         Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  
+  @@map("company_settings")
+}

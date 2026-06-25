@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma-main/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("MAIN_DATABASE_URL")
+}
+
+model SuperAdmin {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  password         String
+  name             String
+  avatar           String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("super_admins")
+}
+
+model Company {
+  id               Int       @id @default(autoincrement())
+  name             String
+  domain           String    @unique
+  databaseName     String    @unique
+  isActive         Boolean   @default(true)
+  subscriptionType String    @default("basic")
+  subscriptionEnd  DateTime?
+  dbHost           String    @default("localhost")
+  dbPort           Int       @default(5432)
+  dbUser           String    @default("postgres")
+  dbPassword       String    @default("root")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdBy        Int?
+
+  auditLogs        CompanyAuditLog[]
+
+  @@map("companies")
+}
+
+model CompanyAuditLog {
+  id               Int       @id @default(autoincrement())
+  companyId        Int
+  action           String
+  details          Json?
+  performedBy      Int?
+  createdAt        DateTime  @default(now())
+
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_audit_logs")
+}
+
+model GlobalSetting {
+  id               Int       @id @default(autoincrement())
+  key              String    @unique
+  value            String?
+  description      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("global_settings")
+}
