@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AI-Powered Task Management SaaS Frontend
 
 A modern, fully responsive, production-ready React.js application for AI-Powered Task Management with Local LLM Integration.
@@ -214,3 +215,6 @@ The application architecture supports multi-tenancy:
 ## License
 
 MIT
+=======
+# ai-custom-task-management-system
+>>>>>>> 36163dfc5a216b319b3e5cdf417997c67432f27c
